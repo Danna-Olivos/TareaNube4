@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-SpringbootServicioAutosApplication<springboot-servicio-autos>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.formacionbdi.springboot.app.autos.SpringbootServicioAutosApplication",
+            "projectName": "springboot-servicio-autos",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=36397 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=springboot-servicio-autos"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-SpringbootServicioInventarioAutosApplication<springboot-servicio-inventarioautos>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.formacionbdi.springboot.app.inventarioautos.SpringbootServicioInventarioAutosApplication",
+            "projectName": "springboot-servicio-inventarioautos",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-SpringbootServicioEurekaApplication<springboot-servicio-eureka>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.formacionbdi.springboot.app.eureka.SpringbootServicioEurekaApplication",
+            "projectName": "springboot-servicio-eureka",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
