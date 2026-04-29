@@ -14,11 +14,17 @@ import com.formacionbdi.springboot.app.autos.models.service.IAutoService;
 @RestController
 public class AutoController {
 
-	@Autowired
+	@Autowired	
 	private IAutoService autoService;
 
+	// @GetMapping("/listar")
+	// public List<Auto> listar() {
+	// 	return autoService.findAll();
+	// }
+
 	@GetMapping("/listar")
-	public List<Auto> listar() {
+	public List<Auto> listar() throws InterruptedException {
+		Thread.sleep(2000); // 2 segundos
 		return autoService.findAll();
 	}
 
