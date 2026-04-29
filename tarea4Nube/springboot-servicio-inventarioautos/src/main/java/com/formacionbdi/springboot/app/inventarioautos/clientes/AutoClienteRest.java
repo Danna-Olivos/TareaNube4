@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.formacionbdi.springboot.app.inventarioautos.models.Auto;
 
-@FeignClient(name = "servicio-autos", url = "http://localhost:8003", fallback = AutoClienteRestFallback.class)
+@FeignClient(name = "servicio-autos", fallback = AutoClienteRestFallback.class)
 public interface AutoClienteRest {
     
     @GetMapping("/listar")

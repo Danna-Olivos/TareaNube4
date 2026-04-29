@@ -24,6 +24,7 @@ public class InventarioServiceFeign implements InventarioService {
 	public Inventario findById(Long id, Integer cantidad) {
 		return new Inventario(clienteFeign.detalle(id), cantidad);
 	}
+
 	@Override
 	public void deleteById(Long id) {
 		clienteFeign.eliminar(id);
