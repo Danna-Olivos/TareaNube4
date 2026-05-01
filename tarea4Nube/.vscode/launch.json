@@ -30,6 +30,16 @@
             "projectName": "springboot-servicio-eureka",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-SpringbootServicioZuulApplication<springboot-servicio-zuul>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.formacionbdi.springboot.app.zuul.SpringbootServicioZuulApplication",
+            "projectName": "springboot-servicio-zuul",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }

@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.formacionbdi.springboot.app.inventarioautos.models.Auto;
 
-//@FeignClient(name = "servicio-autos", fallback = AutoClienteRestFallback.class)
-@FeignClient(name = "servicio-autos")
+@FeignClient(name = "servicio-autos", fallback = AutoClienteRestFallback.class)
+//@FeignClient(name = "servicio-autos")
 public interface AutoClienteRest {
     
     @GetMapping("/listar")
