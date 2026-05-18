@@ -5,7 +5,8 @@ import java.util.List;
 import com.formacionbdi.springboot.app.autos.models.entity.Auto;
 
 public interface IAutoService {
-	public List<Auto> findAll();
-	public Auto findById(Long id);
-	public void deleteById(Long id);
+    List<Auto> findAll();
+    Auto findById(Long id);
+    Auto save(Auto auto);       // CREATE + UPDATE
+    void deleteById(Long id);   // DELETE
 }

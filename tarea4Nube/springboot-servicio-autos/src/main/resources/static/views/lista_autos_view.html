@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Modelos de Autos</title>
+    
+    <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- Iconos (Tabler Icons) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ tabler-icons@1.119.0/iconfont/tabler-icons.min.css">
+    
+</head>
+<body>
+
+<h2 class="sr-only">Lista de modelos de autos — vista de administración con operaciones CRUD</h2>
+
+<div style="padding:1rem 0">
+
+    <!-- Estadísticas -->
+    <div class="stats" id="stats"></div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <div class="search-wrap">
+                <i class="ti ti-search" aria-hidden="true"></i>
+                <input type="text" id="searchInput" placeholder="Buscar marca o modelo…">
+            </div>
+            <select id="filterAnio">
+                <option value="">Todos los años</option>
+            </select>
+        </div>
+        <button class="btn-primary" onclick="abrirModal()">
+            <i class="ti ti-plus" aria-hidden="true"></i> Agregar auto
+        </button>
+    </div>
+
+    <!-- Tabla -->
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortBy('id')">ID <i class="ti ti-chevrons-up-down"></i></th>
+                <th onclick="sortBy('marca')">Marca <i class="ti ti-chevrons-up-down"></i></th>
+                <th onclick="sortBy('modelo')">Modelo <i class="ti ti-chevrons-up-down"></i></th>
+                <th onclick="sortBy('anio')">Año <i class="ti ti-chevrons-up-down"></i></th>
+                <th onclick="sortBy('precio')">Precio <i class="ti ti-chevrons-up-down"></i></th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr>
+                <td colspan="7" class="loading">
+                    <i class="ti ti-loader" style="font-size: 24px; animation: spin 1s linear infinite;"></i>
+                    Cargando autos...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Paginación -->
+    <div class="pagination">
+        <span id="pageInfo"></span>
+        <div class="page-btns" id="pageBtns"></div>
+    </div>
+
+</div>
+
+<!-- Modal para Crear/Editar -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitle">Agregar auto</h3>
+        <div class="field">
+            <label>Marca</label>
+            <input id="fMarca" placeholder="Toyota">
+        </div>
+        <div class="field">
+            <label>Modelo</label>
+            <input id="fModelo" placeholder="Corolla">
+        </div>
+        <div class="field">
+            <label>Año</label>
+            <input id="fAnio" type="number" placeholder="2024">
+        </div>
+        <div class="field">
+            <label>Precio (MXN)</label>
+            <input id="fPrecio" type="number" placeholder="350000">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn-save" onclick="guardarAuto()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============================================
+    // CONFIGURACIÓN DE LA API
+    // ============================================
+    const API_BASE_URL = '/autos';  // Usa rutas relativas al mismo servidor
+    
+    // Variables globales
+    let autos = [];
+    let nextId = 1;
+    let editId = null;
+    let sortField = 'id';
+    let sortDir = 1;
+    let page = 1;
+    const PER_PAGE = 5;
+    
+    // ============================================
+    // FUNCIONES DE LA API (CRUD)
+    // ============================================
+    
+    /**
+     * Obtiene todos los autos desde el backend
+     */
+    async function cargarAutosDesdeAPI() {
+        try {
+            mostrarLoading(true);
+            const response = await fetch(`${API_BASE_URL}/listar`);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // La API devuelve: { autos: [...], total: n, puerto_servidor: puerto }
+            if (data.autos && Array.isArray(data.autos)) {
+                autos = data.autos;
+                // Actualizar nextId para que sea mayor que el ID máximo existente
+                if (autos.length > 0) {
+                    const maxId = Math.max(...autos.map(a => a.id));
+                    nextId = maxId + 1;
+                }
+                console.log(`Autos cargados desde puerto: ${data.puerto_servidor}`);
+            } else {
+                autos = [];
+            }
+            
+            render();
+        } catch (error) {
+            console.error('Error cargando autos:', error);
+            mostrarError('No se pudieron cargar los autos. Verifique que el servidor esté corriendo.');
+            autos = [];
+            render();
+        } finally {
+            mostrarLoading(false);
+        }
+    }
+    
+    /**
+     * Guarda un auto nuevo o actualizado
+     */
+    async function guardarAutoEnAPI(auto) {
+        try {
+            let response;
+            
+            if (editId) {
+                // UPDATE - Editar auto existente
+                response = await fetch(`${API_BASE_URL}/editar/${editId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(auto)
+                });
+            } else {
+                // CREATE - Crear nuevo auto
+                response = await fetch(`${API_BASE_URL}/crear`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(auto)
+                });
+            }
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.mensaje || 'Error al guardar el auto');
+            }
+            
+            const resultado = await response.json();
+            console.log('Auto guardado:', resultado);
+            
+            // Recargar la lista después de guardar
+            await cargarAutosDesdeAPI();
+            return true;
+        } catch (error) {
+            console.error('Error guardando auto:', error);
+            alert(`Error: ${error.message}`);
+            return false;
+        }
+    }
+    
+    /**
+     * Elimina un auto por ID
+     */
+    async function eliminarAutoEnAPI(id) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/eliminar/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.mensaje || 'Error al eliminar el auto');
+            }
+            
+            const resultado = await response.json();
+            console.log('Auto eliminado:', resultado);
+            
+            // Recargar la lista después de eliminar
+            await cargarAutosDesdeAPI();
+            return true;
+        } catch (error) {
+            console.error('Error eliminando auto:', error);
+            alert(`Error: ${error.message}`);
+            return false;
+        }
+    }
+    
+    // ============================================
+    // FUNCIONES DE UI
+    // ============================================
+    
+    function mostrarLoading(mostrar) {
+        const tbody = document.getElementById('tableBody');
+        if (mostrar && autos.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="loading">Cargando autos...</td></tr>`;
+        }
+    }
+    
+    function mostrarError(mensaje) {
+        const statsDiv = document.getElementById('stats');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `<i class="ti ti-alert-circle"></i> ${mensaje}`;
+        statsDiv.parentNode.insertBefore(errorDiv, statsDiv.nextSibling);
+        setTimeout(() => errorDiv.remove(), 5000);
+    }
+    
+    /**
+     * Actualiza las estadísticas
+     */
+    function renderStats() {
+        const total = autos.length;
+        const promedio = total ? Math.round(autos.reduce((s, a) => s + a.precio, 0) / total) : 0;
+        const recientes = autos.filter(a => a.anio >= 2023).length;
+        const maxAnio = total ? Math.max(...autos.map(a => a.anio)) : '-';
+        
+        document.getElementById('stats').innerHTML = `
+            <div class="stat">
+                <div class="stat-label">Total autos</div>
+                <div class="stat-value">${total}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Precio promedio</div>
+                <div class="stat-value">$${promedio.toLocaleString()}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Modelos recientes</div>
+                <div class="stat-value">${recientes}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Año más nuevo</div>
+                <div class="stat-value">${maxAnio}</div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Actualiza el filtro de años en el select
+     */
+    function renderAnios() {
+        const sel = document.getElementById('filterAnio');
+        const anios = [...new Set(autos.map(a => a.anio))].sort((a, b) => b - a);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">Todos los años</option>' + 
+            anios.map(a => `<option value="${a}" ${a == cur ? 'selected' : ''}>${a}</option>`).join('');
+    }
+    
+    /**
+     * Filtra y ordena los autos según criterios actuales
+     */
+    function getFilteredAndSorted() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const ay = document.getElementById('filterAnio').value;
+        
+        return autos
+            .filter(a => {
+                const matchSearch = a.marca.toLowerCase().includes(q) || a.modelo.toLowerCase().includes(q);
+                const matchYear = !ay || a.anio == ay;
+                return matchSearch && matchYear;
+            })
+            .sort((a, b) => {
+                let valA = a[sortField];
+                let valB = b[sortField];
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+                return valA < valB ? -1 * sortDir : valA > valB ? 1 * sortDir : 0;
+            });
+    }
+    
+    /**
+     * Renderiza la tabla completa
+     */
+    function render() {
+        renderStats();
+        renderAnios();
+        
+        const data = getFilteredAndSorted();
+        const totalPages = Math.max(1, Math.ceil(data.length / PER_PAGE));
+        
+        if (page > totalPages) page = totalPages;
+        
+        const slice = data.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+        const tbody = document.getElementById('tableBody');
+        
+        if (!slice.length) {
+            tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-car" style="font-size:28px;display:block;margin-bottom:8px" aria-hidden="true"></i>Sin resultados</div></td></tr>`;
+        } else {
+            tbody.innerHTML = slice.map(a => `
+                <tr>
+                    <td style="color:var(--color-text-secondary)">#${a.id}</td>
+                    <td style="font-weight:500">${escapeHtml(a.marca)}</td>
+                    <td>${escapeHtml(a.modelo)}</td>
+                    <td>${a.anio}</td>
+                    <td class="price">$${a.precio.toLocaleString()}</td>
+                    <td><span class="badge ${a.anio >= 2023 ? 'badge-new' : 'badge-old'}">${a.anio >= 2023 ? 'Reciente' : 'Disponible'}</span></td>
+                    <td><div class="actions">
+                        <button class="btn-icon" onclick="editAuto(${a.id})" title="Editar"><i class="ti ti-edit" aria-hidden="true"></i></button>
+                        <button class="btn-icon del" onclick="delAuto(${a.id})" title="Eliminar"><i class="ti ti-trash" aria-hidden="true"></i></button>
+                    </div></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Paginación
+        document.getElementById('pageInfo').textContent = `Mostrando ${slice.length} de ${data.length} autos`;
+        const pb = document.getElementById('pageBtns');
+        pb.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const b = document.createElement('button');
+            b.className = 'pg' + (i === page ? ' active' : '');
+            b.textContent = i;
+            b.onclick = () => {
+                page = i;
+                render();
+            };
+            pb.appendChild(b);
+        }
+    }
+    
+    /**
+     * Escapa caracteres HTML para prevenir XSS
+     */
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    
+    // ============================================
+    // FUNCIONES DE ORDENAMIENTO
+    // ============================================
+    
+    function sortBy(field) {
+        if (sortField === field) {
+            sortDir *= -1;
+        } else {
+            sortField = field;
+            sortDir = 1;
+        }
+        page = 1;
+        render();
+    }
+    
+    // ============================================
+    // FUNCIONES DEL MODAL
+    // ============================================
+    
+    function abrirModal(auto = null) {
+        editId = auto ? auto.id : null;
+        document.getElementById('modalTitle').textContent = auto ? 'Editar auto' : 'Agregar auto';
+        document.getElementById('fMarca').value = auto ? auto.marca : '';
+        document.getElementById('fModelo').value = auto ? auto.modelo : '';
+        document.getElementById('fAnio').value = auto ? auto.anio : '';
+        document.getElementById('fPrecio').value = auto ? auto.precio : '';
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+    
+    function cerrarModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+        editId = null;
+    }
+    
+    async function guardarAuto() {
+        const marca = document.getElementById('fMarca').value.trim();
+        const modelo = document.getElementById('fModelo').value.trim();
+        const anio = parseInt(document.getElementById('fAnio').value);
+        const precio = parseFloat(document.getElementById('fPrecio').value);
+        
+        // Validaciones
+        if (!marca) {
+            alert('La marca es obligatoria');
+            return;
+        }
+        if (!modelo) {
+            alert('El modelo es obligatorio');
+            return;
+        }
+        if (isNaN(anio) || anio < 1900 || anio > 2030) {
+            alert('Año inválido (1900-2030)');
+            return;
+        }
+        if (isNaN(precio) || precio <= 0) {
+            alert('Precio inválido (debe ser mayor a 0)');
+            return;
+        }
+        
+        const autoData = { marca, modelo, anio, precio };
+        
+        const success = await guardarAutoEnAPI(autoData);
+        if (success) {
+            cerrarModal();
+            page = 1;
+        }
+    }
+    
+    async function editAuto(id) {
+        const auto = autos.find(a => a.id === id);
+        if (auto) {
+            abrirModal(auto);
+        }
+    }
+    
+    async function delAuto(id) {
+        if (confirm(`¿Estás seguro de eliminar el auto con ID ${id}?`)) {
+            await eliminarAutoEnAPI(id);
+        }
+    }
+    
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    
+    document.getElementById('searchInput').oninput = () => {
+        page = 1;
+        render();
+    };
+    
+    document.getElementById('filterAnio').onchange = () => {
+        page = 1;
+        render();
+    };
+    
+    document.getElementById('modalOverlay').onclick = (e) => {
+        if (e.target === e.currentTarget) cerrarModal();
+    };
+    
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    
+    // Cargar autos al iniciar la página
+    cargarAutosDesdeAPI();
+</script>
+
+</body>
+</html>
